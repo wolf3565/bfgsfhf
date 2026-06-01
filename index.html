@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TDL 一键命令生成器</title>
+  <style>
+    :root {
+      --bg: #050816;
+      --panel: rgba(255,255,255,.06);
+      --panel-2: rgba(0,0,0,.22);
+      --border: rgba(255,255,255,.10);
+      --text: #eaf2ff;
+      --muted: #91a0b8;
+      --muted-2: #6f7c92;
+      --input: #0b1020;
+      --accent-a: #67e8f9;
+      --accent-b: #a78bfa;
+      --shadow: 0 30px 80px rgba(0,0,0,.28);
+      --success: #34d399;
+    }
+
+    :root[data-theme="day"] {
+      --bg: #eef3fb;
+      --panel: rgba(255,255,255,.82);
+      --panel-2: rgba(255,255,255,.58);
+      --border: rgba(15,23,42,.10);
+      --text: #0f172a;
+      --muted: #475569;
+      --muted-2: #64748b;
+      --input: #ffffff;
+      --shadow: 0 22px 60px rgba(15,23,42,.12);
+      --success: #059669;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(103,232,249,.10), transparent 28%),
+        radial-gradient(circle at top right, rgba(167,139,250,.10), transparent 28%),
+        var(--bg);
+      color: var(--text);
+      transition: background .2s ease, color .2s ease;
+    }
+
+    .wrap { max-width: 1400px; margin: 0 auto; padding: 20px; }
+    .shell {
+      border: 1px solid var(--border);
+      border-radius: 26px;
+      background: var(--panel);
+      backdrop-filter: blur(18px);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .header {
+      padding: 22px 20px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      text-align: center;
+    }
+
+    .eyebrow {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .28em;
+      color: var(--muted);
+    }
+
+    h1 { margin: 8px 0 0; font-size: clamp(24px, 2.6vw, 34px); line-height: 1.1; }
+    .top-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+
+    .theme-btn, .tiny-btn {
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 9px 13px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: .15s ease;
+    }
+    .theme-btn.active {
+      background: linear-gradient(90deg, var(--accent-a), var(--accent-b));
+      color: #05111c;
+      font-weight: 700;
+      border-color: transparent;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.05fr .95fr;
+      gap: 18px;
+      padding: 18px;
+      align-items: start;
+    }
+    @media (max-width: 1180px) { .grid { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 16px;
+    }
+    .sticky { position: sticky; top: 18px; }
+    @media (max-width: 1180px) { .sticky { position: static; } }
+
+    .card h2 { margin: 0; font-size: 17px; }
+    .section { margin-top: 14px; }
+    .section-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .section-title h3 { margin: 0; font-size: 14px; }
+    .hint { font-size: 12px; color: var(--muted-2); }
+
+    .form-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .full { grid-column: 1 / -1; }
+    @media (max-width: 740px) { .form-grid { grid-template-columns: 1fr; } }
+
+    label.field-label {
+      display: block;
+      margin-bottom: 7px;
+      font-size: 13px;
+      color: var(--text);
+    }
+    input, textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: var(--input);
+      color: var(--text);
+      border-radius: 16px;
+      padding: 11px 13px;
+      outline: none;
+      font-size: 14px;
+      transition: .15s ease;
+    }
+    input:focus, textarea:focus {
+      border-color: rgba(103,232,249,.45);
+      box-shadow: 0 0 0 4px rgba(103,232,249,.08);
+    }
+    input::placeholder, textarea::placeholder { color: var(--muted-2); }
+
+    .option-grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .option-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .option-grid.one { grid-template-columns: 1fr; }
+    @media (max-width: 740px) { .option-grid, .option-grid.three { grid-template-columns: 1fr; } }
+
+    .option {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 50px;
+      padding: 11px 12px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: rgba(255,255,255,.04);
+      cursor: pointer;
+      user-select: none;
+      transition: .15s ease;
+    }
+    .option:hover { transform: translateY(-1px); }
+    .option input { position: absolute; opacity: 0; pointer-events: none; }
+    .option .left { display: flex; align-items: center; gap: 10px; }
+    .tick {
+      width: 18px; height: 18px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.03);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: transparent;
+      font-size: 12px;
+      font-weight: 900;
+      flex: 0 0 auto;
+      transition: .15s ease;
+    }
+    .option.selected {
+      border-color: rgba(103,232,249,.35);
+      background: linear-gradient(90deg, rgba(103,232,249,.10), rgba(167,139,250,.10));
+    }
+    .option.selected .tick {
+      background: linear-gradient(90deg, var(--accent-a), var(--accent-b));
+      color: #04111c;
+      border-color: transparent;
+    }
+    .title { font-size: 13px; font-weight: 700; }
+    .sub { font-size: 12px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+
+    .actions {
+      margin-top: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    button.action {
+      border: 0;
+      border-radius: 16px;
+      padding: 11px 14px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 700;
+      transition: transform .15s ease, opacity .15s ease;
+    }
+    button.action:hover { transform: translateY(-1px); }
+    .primary { background: linear-gradient(90deg, var(--accent-a), var(--accent-b)); color: #04111c; }
+    .ghost { color: var(--text); background: rgba(255,255,255,.06); border: 1px solid var(--border); }
+    .status-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid rgba(52,211,153,.22);
+      background: rgba(52,211,153,.10);
+      color: var(--success);
+      padding: 9px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      min-height: 42px;
+      opacity: 0;
+      transform: translateY(4px);
+      transition: .18s ease;
+    }
+    .status-chip.show { opacity: 1; transform: translateY(0); }
+
+    .output textarea {
+      min-height: 440px;
+      resize: vertical;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      line-height: 1.6;
+      white-space: pre;
+      tab-size: 2;
+    }
+
+    .history-card {
+      margin-top: 16px;
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      background: var(--panel-2);
+      overflow: hidden;
+    }
+    .history-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 14px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+    }
+    .history-head strong { font-size: 13px; }
+    .history-head small { color: var(--muted); }
+    .history-body {
+      max-height: 320px;
+      overflow: auto;
+      display: none;
+    }
+    .history-body.open { display: block; }
+    .history-item {
+      border-top: 1px solid var(--border);
+      padding: 10px 14px;
+      cursor: pointer;
+    }
+    .history-item:hover { background: rgba(255,255,255,.04); }
+    .history-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .history-meta { margin-top: 4px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+    .history-detail {
+      margin-top: 8px;
+      padding: 10px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.05);
+      display: none;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 11px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: var(--text);
+    }
+    .history-item.expanded .history-detail { display: block; }
+    .history-empty {
+      padding: 14px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .history-foot {
+      padding: 10px 14px 12px;
+      display: flex;
+      gap: 8px;
+      justify-content: space-between;
+      border-top: 1px solid var(--border);
+    }
+    .history-actions { display: flex; gap: 8px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="shell">
+      <div class="header">
+        <div>
+          <div class="eyebrow">TDL / COMMAND BUILDER</div>
+          <h1>一键命令生成器</h1>
+        </div>
+        <div class="top-actions">
+          <button class="theme-btn active" id="nightBtn" type="button">夜晚</button>
+          <button class="theme-btn" id="dayBtn" type="button">白天</button>
+        </div>
+      </div>
+
+      <div class="grid">
+        <section class="card">
+          <h2>参数输入</h2>
+
+          <div class="section">
+            <div class="section-title">
+              <h3>基础信息</h3>
+              <div class="hint">任务名优先，未填则用目标ID作为历史键</div>
+            </div>
+            <div class="form-grid">
+              <div>
+                <label class="field-label" for="taskName">任务名（可选）</label>
+                <input id="taskName" placeholder="例如：群采集-01" />
+              </div>
+              <div>
+                <label class="field-label" for="outputName">输出文件</label>
+                <input id="outputName" placeholder="只输入数字或字母" />
+              </div>
+              <div>
+                <label class="field-label" for="sourceId">来源ID</label>
+                <input id="sourceId" placeholder="iyear / @iyear / 1852773386 / -1001852773386" />
+              </div>
+              <div>
+                <label class="field-label" for="targetId">目标ID</label>
+                <input id="targetId" placeholder="iyear / @iyear / 1852773386 / -1001852773386" />
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">
+              <h3>导出范围</h3>
+              <div class="hint">始终可编辑</div>
+            </div>
+            <div class="option-grid">
+              <label class="option selected"><input type="radio" name="rangeType" value="id" checked /><span class="left"><span class="tick">✓</span><span><div class="title">ID范围</div><div class="sub">tdl chat export -c CHAT -T id -i 100,500</div></span></span></label>
+              <label class="option"><input type="radio" name="rangeType" value="time" /><span class="left"><span class="tick">✓</span><span><div class="title">时间范围</div><div class="sub">tdl chat export -c CHAT -T time -i 1665700000,1665761624</div></span></span></label>
+            </div>
+            <div class="form-grid" style="margin-top:12px;">
+              <div>
+                <label class="field-label" for="startValue">起始值</label>
+                <input id="startValue" placeholder="第一个值，或粘贴消息链接" />
+              </div>
+              <div>
+                <label class="field-label" for="endValue">结束值</label>
+                <input id="endValue" placeholder="第二个值，或粘贴消息链接" />
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">
+              <h3>导出模式</h3>
+              <div class="hint">标准导出默认选中</div>
+            </div>
+            <div class="option-grid two">
+              <label class="option selected"><input type="radio" name="exportFormat" value="standard" checked /><span class="left"><span class="tick">✓</span><span><div class="title">标准导出</div><div class="sub">普通导出模式</div></span></span></label>
+              <label class="option"><input type="radio" name="exportFormat" value="raw" /><span class="left"><span class="tick">✓</span><span><div class="title">原始结构 --raw</div><div class="sub">与标准导出互斥</div></span></span></label>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">
+              <h3>附加模式</h3>
+              <div class="hint">可与原始结构共选</div>
+            </div>
+            <div class="option-grid three">
+              <label class="option selected"><input type="radio" name="contextMode" value="none" checked /><span class="left"><span class="tick">✓</span><span><div class="title">独立导出</div><div class="sub">不加 topic / reply</div></span></span></label>
+              <label class="option"><input type="radio" name="contextMode" value="topic" /><span class="left"><span class="tick">✓</span><span><div class="title">主题 --topic</div><div class="sub">tdl chat export -c CHAT --topic TOPIC_ID</div></span></span></label>
+              <label class="option"><input type="radio" name="contextMode" value="reply" /><span class="left"><span class="tick">✓</span><span><div class="title">贴子回复 --reply</div><div class="sub">tdl chat export -c CHAT --reply POST_ID</div></span></span></label>
+            </div>
+            <div id="contextIdWrap" class="form-grid hidden" style="margin-top:12px;">
+              <div class="full">
+                <label class="field-label" id="contextIdLabel" for="contextId">附加ID</label>
+                <input id="contextId" placeholder="TOPIC_ID / POST_ID" />
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">
+              <h3>过滤与清理</h3>
+              <div class="hint">逗号分隔</div>
+            </div>
+            <div class="form-grid">
+              <div class="full"><label class="field-label" for="excludeKeywords">排除关键词</label><input id="excludeKeywords" placeholder="关键词1,关键词2,关键词3" /></div>
+              <div class="full"><label class="field-label" for="removeKeywords">去除关键词</label><input id="removeKeywords" placeholder="Powered by" /></div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">
+              <h3>命令历史</h3>
+              <div class="hint">按任务名或目标ID存储</div>
+            </div>
+            <div class="history-card">
+              <div class="history-head" id="historyToggle">
+                <div>
+                  <strong>命令历史</strong><br />
+                  <small>点击展开 / 收起</small>
+                </div>
+                <div class="history-actions">
+                  <button class="tiny-btn" id="historyClear" type="button">清空</button>
+                </div>
+              </div>
+              <div class="history-body" id="historyBody">
+                <div class="history-empty" id="historyEmpty">暂无历史记录</div>
+              </div>
+              <div class="history-foot">
+                <span style="font-size:12px;color:var(--muted);">Cloudflare 原生共享历史</span>
+                <button class="tiny-btn" id="historyRefresh" type="button">刷新</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card sticky output">
+          <div class="section-title"><div><h2>转发与结果</h2></div></div>
+
+          <div class="section">
+            <div class="section-title">
+              <h3>转发选项</h3>
+              <div class="hint">默认勾选反序转发 --desc 与 克隆 --clone</div>
+            </div>
+            <div class="option-grid two">
+              <label class="option"><input type="radio" name="forwardMode" value="direct" /><span class="left"><span class="tick">✓</span><span><div class="title">默认 --direct</div><div class="sub">tdl forward --from FILE --mode direct</div></span></span></label>
+              <label class="option selected"><input type="radio" name="forwardMode" value="clone" checked /><span class="left"><span class="tick">✓</span><span><div class="title">克隆 --clone</div><div class="sub">tdl forward --from FILE --mode clone</div></span></span></label>
+            </div>
+            <div class="option-grid one" style="margin-top:10px;">
+              <label class="option selected"><input type="checkbox" id="descFlag" checked /><span class="left"><span class="tick">✓</span><span><div class="title">反序转发 --desc</div><div class="sub">可与 direct / clone 共选</div></span></span></label>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">
+              <h3>容器选项</h3>
+              <div class="hint">可多选</div>
+            </div>
+            <div class="option-grid one">
+              <label class="option"><input type="checkbox" id="optInstall" /><span class="left"><span class="tick">✓</span><span><div class="title">安装容器</div><div class="sub">docker run -it --name tdl ...</div></span></span></label>
+              <label class="option"><input type="checkbox" id="optEnter" /><span class="left"><span class="tick">✓</span><span><div class="title">进入容器</div><div class="sub">docker exec -it tdl sh</div></span></span></label>
+              <label class="option"><input type="checkbox" id="optLogin" /><span class="left"><span class="tick">✓</span><span><div class="title">登录</div><div class="sub">tdl login -T qr</div></span></span></label>
+              <label class="option"><input type="checkbox" id="optListChats" /><span class="left"><span class="tick">✓</span><span><div class="title">列出聊天</div><div class="sub">tdl chat ls</div></span></span></label>
+              <label class="option"><input type="checkbox" id="optExtend" /><span class="left"><span class="tick">✓</span><span><div class="title">扩展</div><div class="sub">tdl whoami / tdl send</div></span></span></label>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button class="action primary" id="generateBtn" type="button">一键生成命令</button>
+            <button class="action ghost" id="copyResultBtn" type="button">复制结果</button>
+            <button class="action ghost" id="resetBtn" type="button">重置为留空</button>
+            <div class="status-chip" id="statusChip"></div>
+          </div>
+
+          <div style="margin-top:14px;"><textarea id="result" readonly spellcheck="false"></textarea></div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  async function apiFetch(path, options = {}) {
+    const res = await fetch(path, {
+      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+      ...options,
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res;
+  }
+
+  function escapeRegExp(str) { return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+  function splitCsv(value) { return String(value).split(',').map(s => s.trim()).filter(Boolean); }
+  function buildAlternation(csv) { const items = splitCsv(csv).map(escapeRegExp); return items.length ? items.join('|') : ''; }
+  function getChecked(name) { const el = document.querySelector(`input[name="${name}"]:checked`); return el ? el.value : ''; }
+  function normalizePeer(value) {
+    const v = String(value || '').trim();
+    if (!v) return '';
+    if (/^-100\d+$/.test(v)) return v.slice(4);
+    if (/^\d+$/.test(v)) return v;
+    if (v.startsWith('@')) return v;
+    if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(v)) return `@${v}`;
+    return v;
+  }
+  function getOutputPath() { return `/downloads/${($('outputName').value.trim() || 'OUTPUT')}.json`; }
+
+  function setSelectedStyles() {
+    document.querySelectorAll('.option').forEach((label) => {
+      const input = label.querySelector('input');
+      if (!input) return;
+      label.classList.toggle('selected', input.checked);
+    });
+  }
+
+  function updateTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    $('nightBtn').classList.toggle('active', theme === 'night');
+    $('dayBtn').classList.toggle('active', theme === 'day');
+    localStorage.setItem('tdl_theme', theme);
+  }
+
+  function showStatus(message) {
+    const chip = $('statusChip');
+    chip.textContent = message;
+    chip.classList.add('show');
+    clearTimeout(window.__statusTimer);
+    window.__statusTimer = setTimeout(() => chip.classList.remove('show'), 2200);
+  }
+
+  function parseTelegramLink(raw) {
+    const v = String(raw || '').trim();
+    if (!v) return null;
+    const m = v.match(/^https?:\/\/t\.me\/(?:c\/(\d+)\/(\d+)\/(\d+)|([A-Za-z0-9_]+)\/(\d+)\/(\d+)|([A-Za-z0-9_]+)\/(\d+))(?:\?.*)?$/i);
+    if (!m) return null;
+    if (m[1]) return { sourceId: m[1], contextMode: 'reply', contextId: m[2], messageId: m[3] };
+    if (m[4]) return { sourceId: `@${m[4]}`, contextMode: 'reply', contextId: m[5], messageId: m[6] };
+    if (m[7]) return { sourceId: `@${m[7]}`, contextMode: 'none', contextId: '', messageId: m[8] };
+    return null;
+  }
+
+  function applyAutoFillFromLinks() {
+    const startParsed = parseTelegramLink($('startValue').value);
+    const endParsed = parseTelegramLink($('endValue').value);
+    const parsed = startParsed || endParsed;
+    if (!parsed) return;
+    if (startParsed) $('startValue').value = startParsed.messageId;
+    if (endParsed) $('endValue').value = endParsed.messageId;
+    $('sourceId').value = normalizePeer(parsed.sourceId);
+    const replyParsed = (startParsed && startParsed.contextMode === 'reply') ? startParsed : ((endParsed && endParsed.contextMode === 'reply') ? endParsed : null);
+    if (replyParsed) {
+      document.querySelector('input[name="contextMode"][value="reply"]').checked = true;
+      $('contextId').value = replyParsed.contextId;
+    }
+  }
+
+  function updateContextUI() {
+    const mode = getChecked('contextMode');
+    const wrap = $('contextIdWrap');
+    const label = $('contextIdLabel');
+    const input = $('contextId');
+    if (mode === 'topic') {
+      wrap.classList.remove('hidden');
+      label.textContent = '主题 ID';
+      input.placeholder = 'TOPIC_ID';
+    } else if (mode === 'reply') {
+      wrap.classList.remove('hidden');
+      label.textContent = '帖子回复 ID';
+      input.placeholder = 'POST_ID';
+    } else {
+      wrap.classList.add('hidden');
+      input.value = '';
+    }
+  }
+
+  function buildContainerCommands() {
+    const cmds = [];
+    if ($('optInstall').checked) cmds.push(`docker run -it --name tdl \
+  -v /docker-data/tdl/config:/root/.tdl \
+  -v /docker-data/tdl/downloads:/downloads \
+  --entrypoint sh \
+  iyear/tdl:latest`);
+    if ($('optEnter').checked) cmds.push('docker exec -it tdl sh');
+    if ($('optLogin').checked) cmds.push('tdl login -T qr');
+    return cmds.join('\n\n');
+  }
+
+  function buildTailCommands() {
+    const cmds = [];
+    if ($('optListChats').checked) cmds.push('tdl chat ls');
+    if ($('optExtend').checked) { cmds.push('tdl whoami'); cmds.push('tdl send'); }
+    return cmds.join('\n');
+  }
+
+  function buildCommands() {
+    const sourceId = normalizePeer($('sourceId').value) || 'CHAT';
+    const targetId = normalizePeer($('targetId').value) || 'TARGET_ID';
+    const outputPath = getOutputPath();
+    const outputBase = outputPath.replace(/\.json$/, '');
+    const rangeType = getChecked('rangeType') || 'id';
+    const startValue = $('startValue').value.trim() || (rangeType === 'time' ? '1665700000' : '100');
+    const endValue = $('endValue').value.trim() || (rangeType === 'time' ? '1665761624' : '500');
+    const exportFormat = getChecked('exportFormat') || 'standard';
+    const contextMode = getChecked('contextMode') || 'none';
+    const contextId = $('contextId').value.trim() || (contextMode === 'topic' ? 'TOPIC_ID' : contextMode === 'reply' ? 'POST_ID' : '');
+    const forwardMode = getChecked('forwardMode') || 'clone';
+    const addDesc = $('descFlag').checked;
+
+    const excluded = buildAlternation($('excludeKeywords').value.trim()) || 'Telegram必备全能搜索机器人|#ad|暗网吃瓜资源|签到随机领取|资源搜索群';
+    const removed = buildAlternation($('removeKeywords').value.trim()) || 'Powered by';
+
+    let exportCmd = `tdl chat export -c ${sourceId}`;
+    if (contextMode === 'topic') exportCmd += ` --topic ${contextId}`;
+    if (contextMode === 'reply') exportCmd += ` --reply ${contextId}`;
+    if (exportFormat === 'raw') exportCmd += ' --raw';
+    exportCmd += ` -T ${rangeType} -i ${startValue},${endValue}`;
+    exportCmd += ` -o ${outputPath}`;
+
+    const jqCmd = exportFormat === 'raw'
+      ? `jq -c '\n.messages |= map(\n  select(((.raw.Message // "") | tostring) | test("${excluded}") | not)\n  | if .raw? then\n      .raw.Message |= sub("(?s)\\n\\n(?:${removed}).*"; "")\n    else\n      .\n    end\n)' ${outputPath} > ${outputBase}.tmp.json \\
+&& mv ${outputBase}.tmp.json ${outputPath}`
+      : `jq -c '\n.messages |= map(\n  select(((.text // "") | tostring) | test("${excluded}") | not)\n  | if has("text") then\n      .text |= sub("(?s)\\n\\n(?:${removed}).*"; "")\n    else .\n    end\n)' ${outputPath} > ${outputBase}.tmp.json \\
+&& mv ${outputBase}.tmp.json ${outputPath}`;
+
+    const forwardCmd = `tdl forward --from ${outputPath} --to ${targetId} --mode ${forwardMode}${addDesc ? ' --desc' : ''}`;
+    const pre = buildContainerCommands();
+    const tail = buildTailCommands();
+    const script = ['#!/bin/sh', 'set -e', pre, exportCmd, jqCmd, forwardCmd, tail].filter(Boolean).join('\n\n');
+
+    return {
+      script,
+      sourceId,
+      targetId,
+      outputPath,
+      taskName: $('taskName').value.trim(),
+      historyKey: $('taskName').value.trim() || targetId || '未命名任务',
+    };
+  }
+
+  function escapeHtml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+  async function loadHistory() {
+    try { const res = await apiFetch('/api/history'); return await res.json(); }
+    catch { return []; }
+  }
+
+  async function saveHistory(record) {
+    try {
+      await apiFetch('/api/history', { method: 'POST', body: JSON.stringify(record) });
+      return true;
+    } catch { return false; }
+  }
+
+  async function clearHistory() {
+    try { await apiFetch('/api/history', { method: 'DELETE' }); return true; }
+    catch { return false; }
+  }
+
+  async function renderHistory() {
+    const body = $('historyBody');
+    const empty = $('historyEmpty');
+    const list = await loadHistory();
+    body.querySelectorAll('.history-item').forEach(n => n.remove());
+    empty.style.display = list.length ? 'none' : 'block';
+
+    list.forEach((item) => {
+      const el = document.createElement('div');
+      el.className = 'history-item';
+      const title = item.taskName || item.targetId || '未命名任务';
+      const subtitle = `${item.targetId ? '目标ID: ' + item.targetId : ''}${item.outputPath ? ' · ' + item.outputPath : ''}`;
+      el.innerHTML = `
+        <div class="history-title">
+          <span>${escapeHtml(title)}</span>
+          <span style="font-size:12px;color:var(--muted);">${new Date(item.createdAt).toLocaleString()}</span>
+        </div>
+        <div class="history-meta">${escapeHtml(subtitle)}</div>
+        <div class="history-detail">${escapeHtml(item.script || '')}</div>
+      `;
+      el.addEventListener('click', () => el.classList.toggle('expanded'));
+      body.appendChild(el);
+    });
+  }
+
+  function render() {
+    applyAutoFillFromLinks();
+    updateContextUI();
+    setSelectedStyles();
+    $('result').value = buildCommands().script;
+  }
+
+  async function copyText(text) {
+    try { await navigator.clipboard.writeText(text); return true; } catch { return false; }
+  }
+
+  function resetAll() {
+    $('taskName').value = '';
+    $('sourceId').value = '';
+    $('targetId').value = '';
+    $('outputName').value = '';
+    $('startValue').value = '';
+    $('endValue').value = '';
+    $('contextId').value = '';
+    $('excludeKeywords').value = '';
+    $('removeKeywords').value = '';
+    $('descFlag').checked = true;
+    $('optInstall').checked = false;
+    $('optEnter').checked = false;
+    $('optLogin').checked = false;
+    $('optListChats').checked = false;
+    $('optExtend').checked = false;
+    document.querySelector('input[name="rangeType"][value="id"]').checked = true;
+    document.querySelector('input[name="exportFormat"][value="standard"]').checked = true;
+    document.querySelector('input[name="contextMode"][value="none"]').checked = true;
+    document.querySelector('input[name="forwardMode"][value="clone"]').checked = true;
+    updateTheme('night');
+    render();
+    $('statusChip').classList.remove('show');
+  }
+
+  async function generateAndSave(msg) {
+    render();
+    const data = buildCommands();
+    $('result').value = data.script;
+    const ok = await saveHistory({
+      id: data.historyKey,
+      taskName: data.taskName,
+      targetId: data.targetId,
+      sourceId: data.sourceId,
+      outputPath: data.outputPath,
+      script: data.script,
+      createdAt: new Date().toISOString(),
+    });
+    await renderHistory();
+    showStatus(ok ? msg : '保存失败');
+    return data;
+  }
+
+  $('generateBtn').addEventListener('click', async () => {
+    await generateAndSave('已生成并成功保存');
+  });
+
+  $('copyResultBtn').addEventListener('click', async () => {
+    const data = await generateAndSave('已复制并成功保存');
+    const ok = await copyText(data.script);
+    const btn = $('copyResultBtn');
+    const old = btn.textContent;
+    btn.textContent = ok ? '已复制' : '复制失败';
+    setTimeout(() => btn.textContent = old, 1200);
+  });
+
+  $('resetBtn').addEventListener('click', resetAll);
+  $('nightBtn').addEventListener('click', () => updateTheme('night'));
+  $('dayBtn').addEventListener('click', () => updateTheme('day'));
+
+  document.querySelectorAll('input[name="rangeType"], input[name="exportFormat"], input[name="contextMode"], input[name="forwardMode"], #descFlag, #optInstall, #optEnter, #optLogin, #optListChats, #optExtend').forEach((el) => {
+    el.addEventListener('change', render);
+  });
+  ['taskName','sourceId','targetId','outputName','startValue','endValue','contextId','excludeKeywords','removeKeywords'].forEach((id) => {
+    $(id).addEventListener('input', render);
+  });
+
+  $('historyToggle').addEventListener('click', () => $('historyBody').classList.toggle('open'));
+  $('historyRefresh').addEventListener('click', renderHistory);
+  $('historyClear').addEventListener('click', async () => { await clearHistory(); await renderHistory(); });
+
+  const savedTheme = localStorage.getItem('tdl_theme') || 'night';
+  updateTheme(savedTheme === 'day' ? 'day' : 'night');
+  render();
+  renderHistory();
+</script>
+</body>
+</html>
